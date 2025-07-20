@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Control LED MQTT</title>
+  <script src="https://cdn.jsdelivr.net/npm/mqtt/dist/mqtt.min.js"></script>
+  <style>
+    body {
+      background: linear-gradient(135deg, #212437 40%, #3a86ff 100%);
+      color: #fff;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+    }
+    .container {
+      background: rgba(34, 40, 49, 0.97);
+      border-radius: 1.5rem;
+      box-shadow: 0 6px 32px 0 rgba(0,0,0,0.25);
+      padding: 2.2rem;
+      text-align: center;
+      width: 90%;
+      max-width: 400px;
+    }
+    h2 {
+      font-size: 2.2em;
+      margin-bottom: 0.6em;
+      font-weight: 600;
+    }
+    .notification {
+      display: none;
+      font-weight: 500;
+      font-size: 1.04em;
+      color: #fff;
+      background: #06d6a0;
+      padding: 1em 2em;
+      border-radius: 1.2em;
+      margin-bottom: 1em;
+    }
+    .led-img {
+      margin: 1.6em 0 1.8em 0;
+      display: flex;
+      justify-content: center;
+    }
+    .bulb {
+      width: 72px;
+      height: 92px;
+      transition: filter 0.3s;
+      filter: drop-shadow(0 0 16px #ffe25999);
+    }
+    .bulb.off {
+      filter: grayscale(0.7) brightness(0.75);
+    }
+    button {
+      font-size: 1.3em;
+      margin: 0 0.7em;
+      padding: 0.9em 2.3em;
+      border-radius: 2em;
+      border: none;
+      cursor: pointer;
+    }
+    .on-btn {
+      background: #06d6a0;
+      color: #222;
+    }
+    .on-btn:hover {
+      background: #40f7cb;
+    }
+    .off-btn {
+      background: #ef476f;
+      color: #fff;
+    }
+    .off-btn:hover {
+      background: #fa9bb4;
+      color: #222;
+    }
+    .footer {
+      margin-top: 2.0em;
+      font-size: 0.95em;
+      color: #bbb;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Controlador LED MQTT</h2>
+    <div class="notification" id="notification"></div>
+    <div class="led-img">
+      <svg id="bulb" class="bulb off" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 62">
+        <ellipse cx="24" cy="24" rx="18" ry="21" fill="#ffe259"/>
+        <ellipse cx="24" cy="27" rx="14" ry="15" fill="#fff59e" opacity="0.8"/>
+        <rect x="18" y="42" width="12" height="12" rx="4" fill="#c7c7c7"/>
+        <rect x="17" y="52" width="14" height="6" rx="3" fill="#bbb"/>
+        <rect x="19" y="55" width="10" height="3" rx="1.5" fill="#999"/>
+      </svg>
+    </div>
+    <div class="led-status" id="ledState">Estado del LED: <b>Desconocido</b></div>
+    <button class="on-btn" onclick="sendCommand('ON')">ENCENDER</button>
+    <button class="off-btn" onclick="sendCommand('OFF')">APAGAR</button>
+    <div class="footer">© 2025 - Proyecto IoT Juan Montoya</div>
+  </div>
+
+  <script>
+    // Configuración del cliente MQTT
+    const clientId = 'webClient' + Math.random().toString(16).substring(2, 8);
+    const host = 'ws://broker.hivemq.com:8000/mqtt';
+    const topic = 'casa/led';
+
+    // Crear un cliente MQTT
+    const client = mqtt.connect(host, {
+      clientId: clientId
+    });
+
+    client.on('connect', function () {
+      console.log('Conectado al broker MQTT');
+      showNotification('Conectado al broker MQTT');
+      updateStatus('Conectado');
+    });
+
+    client.on('error', function (error) {
+      console.log('Error en la conexión MQTT:', error);
+      showNotification('Error en la conexión MQTT: ' + error.message, '#ef476f');
+      updateStatus('Error');
+    });
+
+    function showNotification(msg, color) {
+      var note = document.getElementById('notification');
+      note.innerHTML = msg;
+      note.style.display = 'block';
+      note.style.background = color || "#06d6a0";
+      setTimeout(function() { note.style.display = 'none'; }, 2000);
+    }
+
+    function setBulb(state) {
+      var bulb = document.getElementById('bulb');
+      if(state === 'ON') bulb.classList.remove('off');
+      else bulb.classList.add('off');
+    }
+
+    function updateStatus(state) {
+      document.getElementById('ledState').innerHTML = "Estado del LED: <b>" + (state === 'ON' ? 'ENCENDIDO' : state === 'OFF' ? 'APAGADO' : state) + "</b>";
+      setBulb(state);
+    }
+
+    function sendCommand(command) {
+      if (client.connected) {
+        client.publish(topic, command);
+        console.log(`Comando enviado: ${command}`);
+        showNotification('¡El LED está ' + (command === 'ON' ? 'ENCENDIDO! 💡' : 'APAGADO.'), command === 'ON' ? '#06d6a0' : '#ef476f');
+        updateStatus(command);
+      } else {
+        console.log('No conectado al broker MQTT');
+        showNotification('No conectado al broker MQTT', '#505050');
+        updateStatus('Desconectado');
+      }
+    }
+  </script>
+</body>
+</html>
